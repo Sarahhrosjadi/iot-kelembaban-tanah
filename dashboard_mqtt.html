@@ -15,14 +15,14 @@
         }
         .card {
             background-color: #ffffff;
-            border-radius: 1rem; /* Rounded corners */
+            border-radius: 1rem; /* Sudut membulat */
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             padding: 1.5rem;
             margin-bottom: 1.5rem;
         }
         .btn {
             padding: 0.75rem 1.5rem;
-            border-radius: 0.75rem; /* Rounded corners */
+            border-radius: 0.75rem; /* Sudut membulat */
             font-weight: 600;
             transition: background-color 0.3s ease;
         }
@@ -76,7 +76,7 @@
     <div class="w-full max-w-2xl mt-8">
         <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Dashboard Kelembaban Tanah</h1>
 
-        <!-- MQTT Connection Status -->
+        <!-- Status Koneksi MQTT -->
         <div class="card flex items-center justify-between">
             <h2 class="text-xl font-semibold text-gray-700">Status Koneksi MQTT:</h2>
             <div class="flex items-center">
@@ -85,7 +85,7 @@
             </div>
         </div>
 
-        <!-- Data Display -->
+        <!-- Tampilan Data -->
         <div class="card">
             <h2 class="text-xl font-semibold text-gray-700 mb-4">Data Sensor & Pompa</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -100,7 +100,7 @@
             </div>
         </div>
 
-        <!-- Mode Control -->
+        <!-- Kontrol Mode -->
         <div class="card">
             <h2 class="text-xl font-semibold text-gray-700 mb-4">Kontrol Mode</h2>
             <div class="flex flex-wrap gap-4 justify-center">
@@ -109,7 +109,7 @@
             </div>
         </div>
 
-        <!-- Manual Pump Control -->
+        <!-- Kontrol Pompa Manual -->
         <div class="card" id="manualControlSection">
             <h2 class="text-xl font-semibold text-gray-700 mb-4">Kontrol Pompa (Mode Manual)</h2>
             <div class="flex flex-wrap gap-4 justify-center">
@@ -128,7 +128,7 @@
     <script>
         // --- Konfigurasi MQTT ---
         const MQTT_BROKER_HOST = 'broker.emqx.io';
-        // UBAH DARI 8083 KE 8084 DAN DARI 'ws://' KE 'wss://' UNTUK KONEKSI AMAN (HTTPS)
+        // Menggunakan port WebSocket AMAN (WSS) 8084 karena halaman dimuat melalui HTTPS
         const MQTT_BROKER_PORT = 8084; // Port WebSocket AMAN (WSS) untuk EMQX
         const MQTT_CLIENT_ID = 'WebDashboard_' + Math.random().toString(16).substr(2, 8); // ID unik
 
@@ -151,14 +151,14 @@
         const manualControlMessage = document.getElementById('manualControlMessage');
 
         let mqttClient;
-        let currentMode = 'OTOMATIS'; // Default mode, sesuaikan dengan ESP32
+        let currentMode = 'OTOMATIS'; // Mode default, sesuaikan dengan ESP32
 
         // --- Fungsi Koneksi MQTT ---
         function connectMqtt() {
             mqttStatusIndicator.className = 'status-indicator status-connecting';
             mqttStatusText.textContent = 'Menghubungkan...';
 
-            // MENGGUNAKAN PROTOKOL WSS (WebSocket Secure) UNTUK KONEKSI AMAN
+            // Menggunakan protokol WSS (WebSocket Secure) untuk koneksi aman
             mqttClient = mqtt.connect(`wss://${MQTT_BROKER_HOST}:${MQTT_BROKER_PORT}`, {
                 clientId: MQTT_CLIENT_ID,
                 // username: 'your_mqtt_username', // Jika broker memerlukan username/password
@@ -171,7 +171,7 @@
                 mqttStatusIndicator.className = 'status-indicator status-connected';
                 mqttStatusText.textContent = 'Terhubung';
 
-                // Subscribe ke topik yang relevan
+                // Berlangganan ke topik yang relevan
                 mqttClient.subscribe(TOPIC_KELEMBABAN, (err) => {
                     if (!err) console.log(`Berlangganan topik: ${TOPIC_KELEMBABAN}`);
                 });
@@ -188,12 +188,12 @@
                     kelembabanValue.textContent = `${parseFloat(msgString).toFixed(2)} %`;
                 } else if (topic === TOPIC_STATUS_POMPA) {
                     pompaStatusText.textContent = msgString;
-                    // Update UI berdasarkan status pompa (misal warna teks)
+                    // Perbarui UI berdasarkan status pompa (misal warna teks)
                     if (msgString === 'ON') {
-                        pompaStatusText.classList.remove('text-green-700', 'text-red-700');
+                        pompaStatusText.classList.remove('text-red-700');
                         pompaStatusText.classList.add('text-green-700');
                     } else {
-                        pompaStatusText.classList.remove('text-green-700', 'text-red-700');
+                        pompaStatusText.classList.remove('text-green-700');
                         pompaStatusText.classList.add('text-red-700');
                     }
                 }
