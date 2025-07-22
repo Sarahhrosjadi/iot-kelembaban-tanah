@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Kelembaban Tanah MQTT</title>
+    <!-- Tailwind CSS CDN untuk styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts - Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Warna latar belakang lembut */
+        }
+        .card {
+            background-color: #ffffff;
+            border-radius: 1rem; /* Rounded corners */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem; /* Rounded corners */
+            font-weight: 600;
+            transition: background-color 0.3s ease;
+        }
+        .btn-primary {
+            background-color: #3b82f6; /* Biru */
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #2563eb;
+        }
+        .btn-secondary {
+            background-color: #6b7280; /* Abu-abu */
+            color: white;
+        }
+        .btn-secondary:hover {
+            background-color: #4b5563;
+        }
+        .btn-success {
+            background-color: #22c55e; /* Hijau */
+            color: white;
+        }
+        .btn-success:hover {
+            background-color: #16a34a;
+        }
+        .btn-danger {
+            background-color: #ef4444; /* Merah */
+            color: white;
+        }
+        .btn-danger:hover {
+            background-color: #dc2626;
+        }
+        .status-indicator {
+            width: 1rem;
+            height: 1rem;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 0.5rem;
+        }
+        .status-connected {
+            background-color: #22c55e; /* Hijau */
+        }
+        .status-disconnected {
+            background-color: #ef4444; /* Merah */
+        }
+        .status-connecting {
+            background-color: #facc15; /* Kuning */
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center min-h-screen p-4">
+    <div class="w-full max-w-2xl mt-8">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Dashboard Kelembaban Tanah</h1>
+
+        <!-- MQTT Connection Status -->
+        <div class="card flex items-center justify-between">
+            <h2 class="text-xl font-semibold text-gray-700">Status Koneksi MQTT:</h2>
+            <div class="flex items-center">
+                <span id="mqttStatusIndicator" class="status-indicator status-connecting"></span>
+                <span id="mqttStatusText" class="text-lg font-medium text-gray-600">Menghubungkan...</span>
+            </div>
+        </div>
+
+        <!-- Data Display -->
+        <div class="card">
+            <h2 class="text-xl font-semibold text-gray-700 mb-4">Data Sensor & Pompa</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="p-4 bg-blue-50 rounded-lg text-center">
+                    <p class="text-sm text-gray-500">Kelembaban Tanah</p>
+                    <p id="kelembabanValue" class="text-4xl font-bold text-blue-700 mt-1">-- %</p>
+                </div>
+                <div class="p-4 bg-green-50 rounded-lg text-center">
+                    <p class="text-sm text-gray-500">Status Pompa</p>
+                    <p id="pompaStatus" class="text-4xl font-bold text-green-700 mt-1">OFF</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mode Control -->
+        <div class="card">
+            <h2 class="text-xl font-semibold text-gray-700 mb-4">Kontrol Mode</h2>
+            <div class="flex flex-wrap gap-4 justify-center">
+                <button id="btnModeOtomatis" class="btn btn-primary" onclick="publishMode('OTOMATIS')">Mode Otomatis</button>
+                <button id="btnModeManual" class="btn btn-secondary" onclick="publishMode('MANUAL')">Mode Manual</button>
+            </div>
+        </div>
+
+        <!-- Manual Pump Control -->
+        <div class="card" id="manualControlSection">
+            <h2 class="text-xl font-semibold text-gray-700 mb-4">Kontrol Pompa (Mode Manual)</h2>
+            <div class="flex flex-wrap gap-4 justify-center">
+                <button id="btnPompaOn" class="btn btn-success" onclick="publishPompaManual('ON')">Pompa ON</button>
+                <button id="btnPompaOff" class="btn btn-danger" onclick="publishPompaManual('OFF')">Pompa OFF</button>
+            </div>
+            <p id="manualControlMessage" class="text-sm text-red-500 text-center mt-4 hidden">
+                Kontrol manual hanya aktif saat mode MANUAL.
+            </p>
+        </div>
+
+    </div>
+
+    <!-- MQTT.js CDN -->
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <script>
+        // --- Konfigurasi MQTT ---
+        const MQTT_BROKER_HOST = 'broker.emqx.io';
+        const MQTT_BROKER_PORT = 8083; // Port WebSocket untuk EMQX
+        const MQTT_CLIENT_ID = 'WebDashboard_' + Math.random().toString(16).substr(2, 8); // ID unik
+
+        // Topik MQTT (SUDAH DIPERBARUI)
+        const TOPIC_KELEMBABAN = "kelembaban_tanah_sarah";
+        const TOPIC_STATUS_POMPA = "status_pompa_sarah";
+        const TOPIC_PERINTAH_MODE = "mode_perintah_tanah";
+        const TOPIC_PERINTAH_POMPA_MANUAL = "perintah_manual";
+
+        // --- Elemen UI ---
+        const mqttStatusIndicator = document.getElementById('mqttStatusIndicator');
+        const mqttStatusText = document.getElementById('mqttStatusText');
+        const kelembabanValue = document.getElementById('kelembabanValue');
+        const pompaStatusText = document.getElementById('pompaStatus');
+        const btnModeOtomatis = document.getElementById('btnModeOtomatis');
+        const btnModeManual = document.getElementById('btnModeManual');
+        const btnPompaOn = document.getElementById('btnPompaOn');
+        const btnPompaOff = document.getElementById('btnPompaOff');
+        const manualControlSection = document.getElementById('manualControlSection');
+        const manualControlMessage = document.getElementById('manualControlMessage');
+
+        let mqttClient;
+        let currentMode = 'OTOMATIS'; // Default mode, sesuaikan dengan ESP32
+
+        // --- Fungsi Koneksi MQTT ---
+        function connectMqtt() {
+            mqttStatusIndicator.className = 'status-indicator status-connecting';
+            mqttStatusText.textContent = 'Menghubungkan...';
+
+            // Menggunakan protokol ws (WebSocket) untuk koneksi browser
+            mqttClient = mqtt.connect(`ws://${MQTT_BROKER_HOST}:${MQTT_BROKER_PORT}`, {
+                clientId: MQTT_CLIENT_ID,
+                // username: 'your_mqtt_username', // Jika broker memerlukan username/password
+                // password: 'your_mqtt_password',
+                reconnectPeriod: 5000 // Coba sambung ulang setiap 5 detik
+            });
+
+            mqttClient.on('connect', () => {
+                console.log('Terhubung ke MQTT Broker!');
+                mqttStatusIndicator.className = 'status-indicator status-connected';
+                mqttStatusText.textContent = 'Terhubung';
+
+                // Subscribe ke topik yang relevan
+                mqttClient.subscribe(TOPIC_KELEMBABAN, (err) => {
+                    if (!err) console.log(`Berlangganan topik: ${TOPIC_KELEMBABAN}`);
+                });
+                mqttClient.subscribe(TOPIC_STATUS_POMPA, (err) => {
+                    if (!err) console.log(`Berlangganan topik: ${TOPIC_STATUS_POMPA}`);
+                });
+            });
+
+            mqttClient.on('message', (topic, message) => {
+                const msgString = message.toString();
+                console.log(`Pesan diterima - Topik: ${topic}, Pesan: ${msgString}`);
+
+                if (topic === TOPIC_KELEMBABAN) {
+                    kelembabanValue.textContent = `${parseFloat(msgString).toFixed(2)} %`;
+                } else if (topic === TOPIC_STATUS_POMPA) {
+                    pompaStatusText.textContent = msgString;
+                    // Update UI berdasarkan status pompa (misal warna teks)
+                    if (msgString === 'ON') {
+                        pompaStatusText.classList.remove('text-green-700', 'text-red-700');
+                        pompaStatusText.classList.add('text-green-700');
+                    } else {
+                        pompaStatusText.classList.remove('text-green-700', 'text-red-700');
+                        pompaStatusText.classList.add('text-red-700');
+                    }
+                }
+            });
+
+            mqttClient.on('error', (err) => {
+                console.error('Kesalahan MQTT:', err);
+                mqttStatusIndicator.className = 'status-indicator status-disconnected';
+                mqttStatusText.textContent = 'Kesalahan';
+            });
+
+            mqttClient.on('close', () => {
+                console.log('Koneksi MQTT terputus.');
+                mqttStatusIndicator.className = 'status-indicator status-disconnected';
+                mqttStatusText.textContent = 'Terputus';
+            });
+
+            mqttClient.on('offline', () => {
+                console.log('Koneksi MQTT offline.');
+                mqttStatusIndicator.className = 'status-indicator status-disconnected';
+                mqttStatusText.textContent = 'Offline';
+            });
+        }
+
+        // --- Fungsi Publikasi MQTT ---
+        function publishMode(mode) {
+            if (mqttClient.connected) {
+                mqttClient.publish(TOPIC_PERINTAH_MODE, mode, {}, (err) => {
+                    if (err) {
+                        console.error('Gagal publish mode:', err);
+                    } else {
+                        console.log(`Perintah mode '${mode}' dikirim.`);
+                        currentMode = mode;
+                        updateModeButtons(mode);
+                        updateManualControlVisibility();
+                    }
+                });
+            } else {
+                alert('Tidak terhubung ke MQTT broker. Silakan coba lagi.');
+            }
+        }
+
+        function publishPompaManual(command) {
+            if (mqttClient.connected) {
+                if (currentMode === 'MANUAL') {
+                    mqttClient.publish(TOPIC_PERINTAH_POMPA_MANUAL, command, {}, (err) => {
+                        if (err) {
+                            console.error('Gagal publish perintah pompa manual:', err);
+                        } else {
+                            console.log(`Perintah pompa manual '${command}' dikirim.`);
+                        }
+                    });
+                } else {
+                    manualControlMessage.classList.remove('hidden');
+                    setTimeout(() => {
+                        manualControlMessage.classList.add('hidden');
+                    }, 3000); // Sembunyikan pesan setelah 3 detik
+                }
+            } else {
+                alert('Tidak terhubung ke MQTT broker. Silakan coba lagi.');
+            }
+        }
+
+        // --- Fungsi Update UI ---
+        function updateModeButtons(mode) {
+            if (mode === 'OTOMATIS') {
+                btnModeOtomatis.classList.add('btn-primary');
+                btnModeOtomatis.classList.remove('btn-secondary');
+                btnModeManual.classList.add('btn-secondary');
+                btnModeManual.classList.remove('btn-primary');
+            } else {
+                btnModeManual.classList.add('btn-primary');
+                btnModeManual.classList.remove('btn-secondary');
+                btnModeOtomatis.classList.add('btn-secondary');
+                btnModeOtomatis.classList.remove('btn-primary');
+            }
+        }
+
+        function updateManualControlVisibility() {
+            if (currentMode === 'MANUAL') {
+                manualControlSection.classList.remove('opacity-50', 'pointer-events-none');
+                btnPompaOn.disabled = false;
+                btnPompaOff.disabled = false;
+            } else {
+                manualControlSection.classList.add('opacity-50', 'pointer-events-none');
+                btnPompaOn.disabled = true;
+                btnPompaOff.disabled = true;
+            }
+        }
+
+        // --- Inisialisasi saat halaman dimuat ---
+        document.addEventListener('DOMContentLoaded', () => {
+            connectMqtt();
+            updateModeButtons(currentMode); // Set initial button state
+            updateManualControlVisibility(); // Set initial manual control state
+        });
+    </script>
+</body>
+</html>
