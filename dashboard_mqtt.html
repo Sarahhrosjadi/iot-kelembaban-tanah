@@ -128,7 +128,8 @@
     <script>
         // --- Konfigurasi MQTT ---
         const MQTT_BROKER_HOST = 'broker.emqx.io';
-        const MQTT_BROKER_PORT = 8083; // Port WebSocket untuk EMQX
+        // UBAH DARI 8083 KE 8084 DAN DARI 'ws://' KE 'wss://' UNTUK KONEKSI AMAN (HTTPS)
+        const MQTT_BROKER_PORT = 8084; // Port WebSocket AMAN (WSS) untuk EMQX
         const MQTT_CLIENT_ID = 'WebDashboard_' + Math.random().toString(16).substr(2, 8); // ID unik
 
         // Topik MQTT (SUDAH DIPERBARUI)
@@ -157,8 +158,8 @@
             mqttStatusIndicator.className = 'status-indicator status-connecting';
             mqttStatusText.textContent = 'Menghubungkan...';
 
-            // Menggunakan protokol ws (WebSocket) untuk koneksi browser
-            mqttClient = mqtt.connect(`ws://${MQTT_BROKER_HOST}:${MQTT_BROKER_PORT}`, {
+            // MENGGUNAKAN PROTOKOL WSS (WebSocket Secure) UNTUK KONEKSI AMAN
+            mqttClient = mqtt.connect(`wss://${MQTT_BROKER_HOST}:${MQTT_BROKER_PORT}`, {
                 clientId: MQTT_CLIENT_ID,
                 // username: 'your_mqtt_username', // Jika broker memerlukan username/password
                 // password: 'your_mqtt_password',
