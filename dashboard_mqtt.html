@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Kelembaban Tanah MQTT</title>
+    <title>Dashboard Kelembaban Tanah</title>
     <!-- Tailwind CSS CDN untuk styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts - Inter -->
@@ -73,66 +73,80 @@
     </style>
 </head>
 <body class="flex flex-col items-center min-h-screen p-4">
-    <div class="w-full max-w-2xl mt-8">
+    <div class="w-full max-w-4xl mt-8">
         <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Dashboard Kelembaban Tanah</h1>
 
-        <!-- Status Koneksi MQTT -->
-        <div class="card flex items-center justify-between">
-            <h2 class="text-xl font-semibold text-gray-700">Status Koneksi MQTT:</h2>
-            <div class="flex items-center">
-                <span id="mqttStatusIndicator" class="status-indicator status-connecting"></span>
-                <span id="mqttStatusText" class="text-lg font-medium text-gray-600">Menghubungkan...</span>
-            </div>
-        </div>
-
-        <!-- Tampilan Data -->
-        <div class="card">
-            <h2 class="text-xl font-semibold text-gray-700 mb-4">Data Sensor & Pompa</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="p-4 bg-blue-50 rounded-lg text-center">
-                    <p class="text-sm text-gray-500">Kelembaban Tanah</p>
-                    <p id="kelembabanValue" class="text-4xl font-bold text-blue-700 mt-1">-- %</p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Kolom Kontrol -->
+            <div class="md:col-span-1">
+                <!-- Status Koneksi MQTT -->
+                <div class="card flex items-center justify-between mb-6">
+                    <h2 class="text-xl font-semibold text-gray-700">Status Koneksi MQTT:</h2>
+                    <div class="flex items-center">
+                        <span id="mqttStatusIndicator" class="status-indicator status-connecting"></span>
+                        <span id="mqttStatusText" class="text-lg font-medium text-gray-600">Menghubungkan...</span>
+                    </div>
                 </div>
-                <div class="p-4 bg-green-50 rounded-lg text-center">
-                    <p class="text-sm text-gray-500">Status Pompa</p>
-                    <p id="pompaStatus" class="text-4xl font-bold text-green-700 mt-1">OFF</p>
+
+                <!-- Kontrol Mode -->
+                <div class="card mb-6">
+                    <h2 class="text-xl font-semibold text-gray-700 mb-4">Kontrol Mode</h2>
+                    <div class="flex flex-col gap-4">
+                        <button id="btnModeOtomatis" class="btn btn-primary btn-block" onclick="publishMode('OTOMATIS')">Mode Otomatis</button>
+                        <button id="btnModeManual" class="btn btn-secondary btn-block" onclick="publishMode('MANUAL')">Mode Manual</button>
+                    </div>
+                </div>
+
+                <!-- Kontrol Pompa Manual -->
+                <div class="card" id="manualControlSection">
+                    <h2 class="text-xl font-semibold text-gray-700 mb-4">Kontrol Pompa (Mode Manual)</h2>
+                    <div class="flex flex-col gap-4">
+                        <button id="btnPompaOn" class="btn btn-success btn-block" onclick="publishPompaManual('ON')">Pompa ON</button>
+                        <button id="btnPompaOff" class="btn btn-danger btn-block" onclick="publishPompaManual('OFF')">Pompa OFF</button>
+                    </div>
+                    <p id="manualControlMessage" class="text-sm text-red-500 text-center mt-4 hidden">
+                        Kontrol manual hanya aktif saat mode MANUAL.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Kolom Tampilan Data & Grafik -->
+            <div class="md:col-span-2">
+                <div class="card mb-6">
+                    <h2 class="text-xl font-semibold text-gray-700 mb-4">Data Sensor & Pompa</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div class="p-4 bg-blue-50 rounded-lg text-center">
+                            <p class="text-sm text-gray-500">Kelembaban Tanah</p>
+                            <p id="kelembabanValue" class="text-4xl font-bold text-blue-700 mt-1">-- %</p>
+                        </div>
+                        <div class="p-4 bg-green-50 rounded-lg text-center">
+                            <p class="text-sm text-gray-500">Status Pompa</p>
+                            <p id="pompaStatus" class="text-4xl font-bold text-green-700 mt-1">OFF</p>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <h2 class="text-xl font-semibold text-gray-700 mb-4">Grafik Kelembaban Tanah</h2>
+                    <canvas id="kelembabanChart" height="150"></canvas>
                 </div>
             </div>
         </div>
-
-        <!-- Kontrol Mode -->
-        <div class="card">
-            <h2 class="text-xl font-semibold text-gray-700 mb-4">Kontrol Mode</h2>
-            <div class="flex flex-wrap gap-4 justify-center">
-                <button id="btnModeOtomatis" class="btn btn-primary" onclick="publishMode('OTOMATIS')">Mode Otomatis</button>
-                <button id="btnModeManual" class="btn btn-secondary" onclick="publishMode('MANUAL')">Mode Manual</button>
-            </div>
-        </div>
-
-        <!-- Kontrol Pompa Manual -->
-        <div class="card" id="manualControlSection">
-            <h2 class="text-xl font-semibold text-gray-700 mb-4">Kontrol Pompa (Mode Manual)</h2>
-            <div class="flex flex-wrap gap-4 justify-center">
-                <button id="btnPompaOn" class="btn btn-success" onclick="publishPompaManual('ON')">Pompa ON</button>
-                <button id="btnPompaOff" class="btn btn-danger" onclick="publishPompaManual('OFF')">Pompa OFF</button>
-            </div>
-            <p id="manualControlMessage" class="text-sm text-red-500 text-center mt-4 hidden">
-                Kontrol manual hanya aktif saat mode MANUAL.
-            </p>
-        </div>
-
     </div>
 
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <!-- MQTT.js CDN -->
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+
     <script>
         // --- Konfigurasi MQTT ---
-        const MQTT_BROKER_HOST = 'broker.emqx.io';
-        // Menggunakan port WebSocket AMAN (WSS) 8084 karena halaman dimuat melalui HTTPS
+        const MQTT_BROKER_HOST = 'broker.emqx.io'; // Menggunakan EMQX
         const MQTT_BROKER_PORT = 8084; // Port WebSocket AMAN (WSS) untuk EMQX
         const MQTT_CLIENT_ID = 'WebDashboard_' + Math.random().toString(16).substr(2, 8); // ID unik
 
-        // Topik MQTT (SUDAH DIPERBARUI)
+        // Topik MQTT
         const TOPIC_KELEMBABAN = "kelembaban_tanah_sarah";
         const TOPIC_STATUS_POMPA = "status_pompa_sarah";
         const TOPIC_PERINTAH_MODE = "mode_perintah_tanah";
@@ -152,6 +166,7 @@
 
         let mqttClient;
         let currentMode = 'OTOMATIS'; // Mode default, sesuaikan dengan ESP32
+        let kelembabanChart; // Variabel untuk instance Chart.js
 
         // --- Fungsi Koneksi MQTT ---
         function connectMqtt() {
@@ -161,8 +176,6 @@
             // Menggunakan protokol WSS (WebSocket Secure) untuk koneksi aman
             mqttClient = mqtt.connect(`wss://${MQTT_BROKER_HOST}:${MQTT_BROKER_PORT}`, {
                 clientId: MQTT_CLIENT_ID,
-                // username: 'your_mqtt_username', // Jika broker memerlukan username/password
-                // password: 'your_mqtt_password',
                 reconnectPeriod: 5000 // Coba sambung ulang setiap 5 detik
             });
 
@@ -185,10 +198,11 @@
                 console.log(`Pesan diterima - Topik: ${topic}, Pesan: ${msgString}`);
 
                 if (topic === TOPIC_KELEMBABAN) {
-                    kelembabanValue.textContent = `${parseFloat(msgString).toFixed(2)} %`;
+                    const kelembaban = parseFloat(msgString);
+                    kelembabanValue.textContent = `${kelembaban.toFixed(2)} %`;
+                    addDataToChart(kelembaban); // Tambahkan data ke grafik
                 } else if (topic === TOPIC_STATUS_POMPA) {
                     pompaStatusText.textContent = msgString;
-                    // Perbarui UI berdasarkan status pompa (misal warna teks)
                     if (msgString === 'ON') {
                         pompaStatusText.classList.remove('text-red-700');
                         pompaStatusText.classList.add('text-green-700');
@@ -284,11 +298,78 @@
             }
         }
 
+        // --- Fungsi Grafik Chart.js ---
+        function initChart() {
+            const ctx = document.getElementById('kelembabanChart').getContext('2d');
+            kelembabanChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [], // Waktu
+                    datasets: [{
+                        label: 'Kelembaban Tanah (%)',
+                        borderColor: 'rgba(59, 130, 246, 1)', // Biru
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                        data: [], // Data kelembaban
+                        fill: true,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false, // Penting untuk responsivitas
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'minute', // Unit waktu di grafik
+                                displayFormats: {
+                                    minute: 'HH:mm'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Waktu'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Kelembaban (%)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function addDataToChart(kelembaban) {
+            const now = new Date();
+            // Batasi jumlah data di grafik (misal 20 data terakhir)
+            const maxDataPoints = 20;
+
+            if (kelembabanChart.data.labels.length >= maxDataPoints) {
+                kelembabanChart.data.labels.shift();
+                kelembabanChart.data.datasets[0].data.shift();
+            }
+
+            kelembabanChart.data.labels.push(now);
+            kelembabanChart.data.datasets[0].data.push(kelembaban);
+            kelembabanChart.update();
+        }
+
         // --- Inisialisasi saat halaman dimuat ---
         document.addEventListener('DOMContentLoaded', () => {
-            connectMqtt();
-            updateModeButtons(currentMode); // Set initial button state
-            updateManualControlVisibility(); // Set initial manual control state
+            initChart(); // Inisialisasi grafik
+            connectMqtt(); // Mulai koneksi MQTT
+            updateModeButtons(currentMode); // Atur status tombol awal
+            updateManualControlVisibility(); // Atur visibilitas kontrol manual awal
         });
     </script>
 </body>
